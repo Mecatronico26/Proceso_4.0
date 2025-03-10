@@ -1,0 +1,47 @@
+<!-- templates/data_import/confirm_delete.html -->
+{% extends 'base.html' %}
+
+{% block title %}Confirmar Eliminación - LitioAnalytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid fade-in">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2"><i class="fas fa-trash-alt"></i> Confirmar Eliminación</h1>
+    </div>
+    
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <i class="fas fa-exclamation-triangle"></i> ¡Atención!
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title mb-4">¿Está seguro de eliminar el archivo "{{ object.name }}"?</h5>
+                    
+                    <div class="alert alert-warning">
+                        <p><strong>Esta acción eliminará permanentemente:</strong></p>
+                        <ul>
+                            <li>El archivo de datos</li>
+                            <li>Todos los análisis asociados al archivo</li>
+                            <li>Todas las visualizaciones generadas</li>
+                        </ul>
+                        <p class="mb-0"><strong>Esta acción no se puede deshacer.</strong></p>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'data_file_detail' object.id %}" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash-alt"></i> Sí, eliminar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

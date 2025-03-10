@@ -1,0 +1,327 @@
+<!-- templates/data_visualization/visualization.html -->
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ analysis.name }} - LitioAnalytics{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container {
+        width: 100%;
+        height: 500px;
+        position: relative;
+    }
+    
+    .stat-card {
+        border-left: 4px solid #3498db;
+        transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .tab-content {
+        padding: 20px;
+        border: 1px solid #dee2e6;
+        border-top: none;
+        border-radius: 0 0 0.25rem 0.25rem;
+    }
+    
+    .table-data th {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+        z-index: 1;
+    }
+    
+    .data-wrapper {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .export-dropdown .dropdown-menu {
+        min-width: 10rem;
+    }
+    
+    #chartContainer {
+        transition: all 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid fade-in">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-chart-line"></i> {{ analysis.name }}
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <div class="dropdown export-dropdown">
+                    <button class="btn btn-sm btn-success dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download"></i> Exportar
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown">
+                        <li><a class="dropdown-item" href="{% url 'export_visualization' analysis.id 'png' %}"><i class="fas fa-file-image"></i> PNG</a></li>
+                        <li><a class="dropdown-item" href="{% url 'export_visualization' analysis.id 'pdf' %}"><i class="fas fa-file-pdf"></i> PDF</a></li>
+                        <li><a class="dropdown-item" href="{% url 'export_visualization' analysis.id 'svg' %}"><i class="fas fa-file-code"></i> SVG</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'export_visualization' analysis.id 'csv' %}"><i class="fas fa-file-csv"></i> CSV</a></li>
+                        <li><a class="dropdown-item" href="{% url 'export_visualization' analysis.id 'excel' %}"><i class="fas fa-file-excel"></i> Excel</a></li>
+                    </ul>
+                </div>
+            </div>
+            <a href="{% url 'data_file_detail' data_file.id %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Volver al archivo
+            </a>
+        </div>
+    </div>
+    
+    <!-- Controles y opciones de visualización -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-sliders-h"></i> Controles de visualización
+        </div>
+        <div class="card-body">
+            <form method="post" action="{% url 'update_visualization' analysis.id %}" id="controlForm">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="chart_type" class="form-label">Tipo de gráfico</label>
+                            <select class="form-select" id="chart_type" name="chart_type">
+                                <option value="line" {% if chart_type == 'line' %}selected{% endif %}>Línea</option>
+                                <option value="bar" {% if chart_type == 'bar' %}selected{% endif %}>Barras</option>
+                                <option value="scatter" {% if chart_type == 'scatter' %}selected{% endif %}>Dispersión</option>
+                                <option value="pie" {% if chart_type == 'pie' %}selected{% endif %}>Pastel</option>
+                                <option value="histogram" {% if chart_type == 'histogram' %}selected{% endif %}>Histograma</option>
+                                <option value="box" {% if chart_type == 'box' %}selected{% endif %}>Caja y bigotes</option>
+                                <option value="heatmap" {% if chart_type == 'heatmap' %}selected{% endif %}>Mapa de calor</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Título</label>
+                            <input type="text" class="form-control" id="title" name="title" value="{{ analysis.name }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="x_axis" class="form-label">Eje X</label>
+                            <select class="form-select" id="x_axis" name="x_axis">
+                                <option value="">-- Ninguno --</option>
+                                {% for col in columns %}
+                                <option value="{{ col }}" {% if analysis.chart_config.x_axis == col %}selected{% endif %}>{{ col }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3 h-100 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-sync-alt"></i> Actualizar Visualización
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <h6>Columnas a mostrar:</h6>
+                    <div class="row">
+                        {% for col in columns %}
+                        <div class="col-md-2 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="column_{{ col }}" id="check_{{ col }}" checked>
+                                <label class="form-check-label" for="check_{{ col }}">
+                                    {{ col }}
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Pestañas para gráfico, datos y estadísticas -->
+    <ul class="nav nav-tabs" id="visualizationTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="chart-tab" data-bs-toggle="tab" data-bs-target="#chart" type="button" role="tab">
+                <i class="fas fa-chart-line"></i> Gráfico
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="data-tab" data-bs-toggle="tab" data-bs-target="#data" type="button" role="tab">
+                <i class="fas fa-table"></i> Datos
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats" type="button" role="tab">
+                <i class="fas fa-calculator"></i> Estadísticas
+            </button>
+        </li>
+    </ul>
+    
+    <div class="tab-content" id="visualizationTabsContent">
+        <div class="tab-pane fade show active" id="chart" role="tabpanel" aria-labelledby="chart-tab">
+            <div class="chart-container" id="chartContainer">
+                <!-- El gráfico se cargará con Plotly -->
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-lightbulb"></i> Interpretación Automática
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> Esta sección mostrará un análisis automático de los datos visualizados
+                                basado en tendencias y patrones detectados.
+                            </div>
+                            
+                            <!-- Aquí se implementará posteriormente el análisis automático -->
+                            <p>Los datos visualizados muestran información para las siguientes columnas: 
+                                <strong>{{ columns|join:", " }}</strong>.</p>
+                            
+                            {% if stats %}
+                            <p>Basado en los datos analizados, se observa que:
+                                <ul>
+                                    {% for col, stat in stats.items %}
+                                    <li>{{ col }}: Valores entre {{ stat.min|floatformat:2 }} y {{ stat.max|floatformat:2 }}, con un promedio de {{ stat.mean|floatformat:2 }}.</li>
+                                    {% endfor %}
+                                </ul>
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-pane fade" id="data" role="tabpanel" aria-labelledby="data-tab">
+            <div class="data-wrapper">
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped table-bordered table-hover table-data">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                {% for col in table_columns %}
+                                <th>{{ col }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in table_data %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                {% for col in table_columns %}
+                                <td>{{ row|get_item:col }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-info-circle"></i> Mostrando las primeras 100 filas de datos. Para ver todos los datos,
+                exporte el archivo completo usando las opciones de exportación.
+            </div>
+        </div>
+        
+        <div class="tab-pane fade" id="stats" role="tabpanel" aria-labelledby="stats-tab">
+            <div class="row">
+                {% if stats %}
+                {% for col, stat in stats.items %}
+                <div class="col-md-4 mb-4">
+                    <div class="card stat-card h-100">
+                        <div class="card-header">
+                            <i class="fas fa-calculator"></i> {{ col }}
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <th>Mínimo</th>
+                                        <td>{{ stat.min|floatformat:2 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Máximo</th>
+                                        <td>{{ stat.max|floatformat:2 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Media</th>
+                                        <td>{{ stat.mean|floatformat:2 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Mediana</th>
+                                        <td>{{ stat.median|floatformat:2 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Desviación Estándar</th>
+                                        <td>{{ stat.std|floatformat:2 }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="col-12">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> No hay estadísticas disponibles para las columnas seleccionadas.
+                        Asegúrese de seleccionar al menos una columna numérica.
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Cargar el gráfico
+        const chartData = {{ chart_json|safe }};
+        Plotly.newPlot('chartContainer', chartData.data, chartData.layout, {responsive: true});
+        
+        // Actualizar tamaño del gráfico cuando se cambia a la pestaña
+        document.getElementById('chart-tab').addEventListener('shown.bs.tab', function (e) {
+            Plotly.relayout('chartContainer', {});
+        });
+        
+        // Función para guardar la configuración del gráfico
+        window.saveConfig = function() {
+            const chartType = document.getElementById('chart_type').value;
+            const title = document.getElementById('title').value;
+            const xAxis = document.getElementById('x_axis').value;
+            
+            // Obtener columnas seleccionadas
+            const selectedColumns = [];
+            document.querySelectorAll('input[name^="column_"]:checked').forEach(checkbox => {
+                const colName = checkbox.name.replace('column_', '');
+                selectedColumns.push(colName);
+            });
+            
+            // Construir la URL con parámetros
+            const url = new URL(window.location.href);
+            url.searchParams.set('chart_type', chartType);
+            url.searchParams.set('title', title);
+            url.searchParams.set('x_axis', xAxis);
+            url.searchParams.set('columns', selectedColumns.join(','));
+            
+            // Redirigir a la nueva URL
+            window.location.href = url.toString();
+        };
+    });
+</script>
+{% endblock %}

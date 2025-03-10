@@ -1,0 +1,81 @@
+<!-- templates/data_import/upload.html -->
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Subir Archivo - LitioAnalytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid fade-in">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2"><i class="fas fa-file-upload"></i> Subir Archivo</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{% url 'data_file_list' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-list"></i> Ver Archivos
+            </a>
+        </div>
+    </div>
+    
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-upload"></i> Subir un nuevo archivo de datos
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            {{ form.name|as_crispy_field }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.description|as_crispy_field }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.file|as_crispy_field }}
+                            <div class="form-text text-muted">
+                                Formatos soportados: Excel (.xlsx, .xls), CSV (.csv)
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 text-center">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-upload"></i> Subir Archivo
+                            </button>
+                            <a href="{% url 'data_file_list' %}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-info-circle"></i> Información
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Consejos para subir archivos</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            <i class="fas fa-check-circle text-success"></i> Los archivos Excel deben tener encabezados en la primera fila.
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-check-circle text-success"></i> El sistema intentará determinar automáticamente los tipos de datos.
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-check-circle text-success"></i> Se permiten valores vacíos y caracteres especiales.
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-check-circle text-success"></i> El tamaño máximo del archivo es de 10MB.
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-check-circle text-success"></i> Si el archivo tiene múltiples hojas, se utilizará la primera por defecto.
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

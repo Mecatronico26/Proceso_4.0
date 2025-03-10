@@ -1,0 +1,314 @@
+<!-- templates/data_import/detail.html -->
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ data_file.name }} - LitioAnalytics{% endblock %}
+
+{% block extra_css %}
+<style>
+    .column-card {
+        border-left: 3px solid #3498db;
+        transition: all 0.3s ease;
+    }
+    
+    .column-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .numeric-column {
+        border-left-color: #27ae60;
+    }
+    
+    .text-column {
+        border-left-color: #e67e22;
+    }
+    
+    .date-column {
+        border-left-color: #9b59b6;
+    }
+    
+    .missing-column {
+        border-left-color: #e74c3c;
+    }
+    
+    .table-preview th {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+        z-index: 1;
+    }
+    
+    .preview-wrapper {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid fade-in">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-file-excel"></i> {{ data_file.name }}
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="{% url 'download_processed_data' data_file.pk %}" class="btn btn-sm btn-success">
+                    <i class="fas fa-download"></i> Descargar
+                </a>
+            </div>
+            <a href="{% url 'data_file_list' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-list"></i> Volver a la lista
+            </a>
+        </div>
+    </div>
+
+    <!-- Información del archivo -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle"></i> Información del Archivo
+                </div>
+                <div class="card-body">
+                    <p><strong>Nombre:</strong> {{ data_file.name }}</p>
+                    <p><strong>Descripción:</strong> {{ data_file.description|default:"Sin descripción" }}</p>
+                    <p><strong>Fecha de subida:</strong> {{ data_file.uploaded_at|date:"d/m/Y H:i" }}</p>
+                    <p><strong>Filas:</strong> {{ rows|default:"N/A" }}</p>
+                    <p><strong>Columnas:</strong> {{ columns|length|default:"N/A" }}</p>
+                    <p><strong>Hoja de cálculo:</strong> {{ data_file.columns.sheet_name|default:"N/A" }}</p>
+                </div>
+            </div>
+        </div>
+    
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-table"></i> Vista previa de datos
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Mostrando una vista previa de las primeras 10 filas.
+                    </div>
+                    
+                    <div class="preview-wrapper">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered table-hover table-preview" id="previewTable">
+                                <thead id="previewHeader">
+                                    <tr>
+                                        <th>#</th>
+                                        <!-- Los encabezados se cargarán con JavaScript -->
+                                    </tr>
+                                </thead>
+                                <tbody id="previewBody">
+                                    <!-- Los datos se cargarán con JavaScript -->
+                                    <tr>
+                                        <td colspan="100%" class="text-center p-3">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Cargando...</span>
+                                            </div>
+                                            <p class="mt-2">Cargando vista previa...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Selección de columnas para análisis -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-chart-line"></i> Selección de columnas para análisis
+        </div>
+        <div class="card-body">
+            <form method="post" action="{% url 'process_file' data_file.pk %}">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            {{ column_form.chart_type|as_crispy_field }}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            {{ column_form.x_axis|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+                
+                <h5 class="mt-4 mb-3">Columnas disponibles</h5>
+                <p class="text-muted mb-3">Seleccione las columnas que desea incluir en el análisis:</p>
+                
+                <div class="row">
+                    {% for column in columns %}
+                    <div class="col-md-3 mb-3">
+                        <div class="card h-100 column-card {% if column_info and column_info|get_item:column and column_info|get_item:column|get_item:'type' == 'float64' or column_info|get_item:column|get_item:'type' == 'int64' %}numeric-column{% elif column_info and column_info|get_item:column and 'datetime' in column_info|get_item:column|get_item:'type' %}date-column{% elif column_info and column_info|get_item:column and column_info|get_item:column|get_item:'missing_percentage' > 50 %}missing-column{% else %}text-column{% endif %}">
+                            <div class="card-body">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="column_{{ column }}" id="check_{{ column }}" checked>
+                                    <label class="form-check-label" for="check_{{ column }}">
+                                        <strong>{{ column }}</strong>
+                                    </label>
+                                </div>
+                                
+                                {% if column_info and column_info|get_item:column %}
+                                <small class="text-muted d-block mt-2">
+                                    Tipo: {{ column_info|get_item:column|get_item:'type' }}<br>
+                                    Valores únicos: {{ column_info|get_item:column|get_item:'unique_values' }}<br>
+                                    {% if column_info|get_item:column|get_item:'missing_values' > 0 %}
+                                    Valores faltantes: {{ column_info|get_item:column|get_item:'missing_values' }} ({{ column_info|get_item:column|get_item:'missing_percentage' }}%)<br>
+                                    {% endif %}
+                                    
+                                    {% if column_info|get_item:column|get_item:'min' != None %}
+                                    Min: {{ column_info|get_item:column|get_item:'min'|floatformat:2 }}<br>
+                                    Max: {{ column_info|get_item:column|get_item:'max'|floatformat:2 }}<br>
+                                    Media: {{ column_info|get_item:column|get_item:'mean'|floatformat:2 }}<br>
+                                    {% endif %}
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="mt-4 text-center">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-chart-line"></i> Generar Visualización
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="selectAllBtn">Seleccionar todo</button>
+                    <button type="button" class="btn btn-outline-secondary" id="deselectAllBtn">Deseleccionar todo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Análisis anteriores -->
+    {% if analyses %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-history"></i> Análisis Anteriores
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Tipo de Gráfico</th>
+                            <th>Columnas</th>
+                            <th>Fecha</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for analysis in analyses %}
+                        <tr>
+                            <td>{{ analysis.name }}</td>
+                            <td>{{ analysis.chart_type|title }}</td>
+                            <td>{{ analysis.selected_columns|length }}</td>
+                            <td>{{ analysis.created_at|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{% url 'data_visualization' analysis.id %}" class="btn btn-sm btn-outline-primary" title="Ver visualización">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'export_visualization' analysis.id 'png' %}" class="btn btn-sm btn-outline-success" title="Exportar PNG">
+                                        <i class="fas fa-file-image"></i>
+                                    </a>
+                                    <a href="{% url 'delete_analysis' analysis.id %}" class="btn btn-sm btn-outline-danger" title="Eliminar" onclick="return confirm('¿Está seguro de eliminar este análisis?');">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Cargar vista previa de datos
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileId = {{ data_file.pk }};
+        
+        fetch(`/import/${fileId}/preview/`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error al cargar la vista previa');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Limpiar tabla
+                const headerRow = document.querySelector('#previewHeader tr');
+                headerRow.innerHTML = '<th>#</th>';
+                
+                // Agregar encabezados
+                data.columns.forEach(column => {
+                    const th = document.createElement('th');
+                    th.textContent = column;
+                    headerRow.appendChild(th);
+                });
+                
+                // Agregar datos
+                const tbody = document.getElementById('previewBody');
+                tbody.innerHTML = '';
+                
+                data.data.forEach((row, index) => {
+                    const tr = document.createElement('tr');
+                    
+                    // Agregar número de fila
+                    const tdIndex = document.createElement('td');
+                    tdIndex.textContent = index + 1;
+                    tr.appendChild(tdIndex);
+                    
+                    // Agregar datos de fila
+                    data.columns.forEach(column => {
+                        const td = document.createElement('td');
+                        td.textContent = row[column] !== null ? row[column] : '';
+                        tr.appendChild(td);
+                    });
+                    
+                    tbody.appendChild(tr);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('previewBody').innerHTML = `
+                    <tr>
+                        <td colspan="100%" class="text-center p-3 text-danger">
+                            <i class="fas fa-exclamation-circle fa-2x mb-2"></i>
+                            <p>Error al cargar la vista previa: ${error.message}</p>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+        // Botones para seleccionar/deseleccionar todo
+        document.getElementById('selectAllBtn').addEventListener('click', function() {
+            document.querySelectorAll('.form-check-input').forEach(checkbox => {
+                checkbox.checked = true;
+            });
+        });
+        
+        document.getElementById('deselectAllBtn').addEventListener('click', function() {
+            document.querySelectorAll('.form-check-input').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        });
+    });
+</script>
+{% endblock %}

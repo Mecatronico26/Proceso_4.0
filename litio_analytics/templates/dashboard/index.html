@@ -1,0 +1,241 @@
+<!-- templates/dashboard/index.html -->
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - LitioAnalytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid fade-in">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2"><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="{% url 'data_file_upload' %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-upload"></i> Subir Archivo
+                </a>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle">
+                <i class="fas fa-calendar"></i> Esta semana
+            </button>
+        </div>
+    </div>
+    
+    <!-- Resumen de estadísticas -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Archivos Totales</h6>
+                            <h2 class="mb-0">{{ total_files }}</h2>
+                        </div>
+                        <i class="fas fa-file-excel fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Análisis Realizados</h6>
+                            <h2 class="mb-0">{{ total_analyses }}</h2>
+                        </div>
+                        <i class="fas fa-chart-line fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Actividad Reciente</h6>
+                            <h2 class="mb-0">{{ activity_files|add:activity_analyses }}</h2>
+                        </div>
+                        <i class="fas fa-bolt fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">Archivos Esta Semana</h6>
+                            <h2 class="mb-0">{{ activity_files }}</h2>
+                        </div>
+                        <i class="fas fa-calendar-week fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gráficas de actividad -->
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-chart-area"></i> Actividad Reciente
+                </div>
+                <div class="card-body">
+                    <div id="activity-chart" style="height: 300px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-clipboard-list"></i> Accesos Rápidos
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="{% url 'data_file_upload' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-upload"></i> Subir nuevo archivo
+                        </a>
+                        <a href="{% url 'data_file_list' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-list"></i> Ver todos los archivos
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="fas fa-chart-bar"></i> Visualizar último análisis
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="fas fa-file-alt"></i> Generar informe
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="fas fa-cog"></i> Configurar sistema
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Archivos y análisis recientes -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-file-excel"></i> Archivos Recientes
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Fecha</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for file in recent_files %}
+                                <tr>
+                                    <td>{{ file.name }}</td>
+                                    <td>{{ file.uploaded_at|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'data_file_detail' file.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center">No hay archivos recientes</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    <a href="{% url 'data_file_list' %}" class="btn btn-sm btn-outline-primary">Ver todos</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie"></i> Análisis Recientes
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Archivo</th>
+                                    <th>Fecha</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for analysis in recent_analyses %}
+                                <tr>
+                                    <td>{{ analysis.name }}</td>
+                                    <td>{{ analysis.data_file.name }}</td>
+                                    <td>{{ analysis.created_at|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'data_visualization' analysis.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center">No hay análisis recientes</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    <a href="#" class="btn btn-sm btn-outline-primary">Ver todos</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Datos para el gráfico de actividad
+        var chartData = {{ chart_data|safe }};
+        
+        if (chartData.length > 0) {
+            var dates = chartData.map(function(item) { return item.date; });
+            var counts = chartData.map(function(item) { return item.count; });
+            
+            var trace = {
+                x: dates,
+                y: counts,
+                type: 'bar',
+                marker: {
+                    color: '#3498db'
+                }
+            };
+            
+            var layout = {
+                margin: { t: 10, l: 40, r: 10, b: 40 },
+                xaxis: {
+                    title: 'Fecha'
+                },
+                yaxis: {
+                    title: 'Archivos subidos'
+                }
+            };
+            
+            Plotly.newPlot('activity-chart', [trace], layout);
+        } else {
+            document.getElementById('activity-chart').innerHTML = '<p class="text-center p-5">No hay datos de actividad para mostrar</p>';
+        }
+    });
+</script>
+{% endblock %}
